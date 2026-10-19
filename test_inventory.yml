@@ -1,0 +1,46 @@
+---
+# Stage 3.  Prove that CMDB attributes arrive as usable host variables and groups.
+# This does not connect to any managed host, it only reads the inventory.
+#
+#   ansible-playbook -i inventory/mock_helix.yml test_inventory.yml
+#   ansible-playbook -i inventory/helix.yml      test_inventory.yml
+
+- name: Show what came back from the CMDB
+  hosts: all
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: One line per Configuration Item
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}
+          | type={{ helix_Type | default('unset') }}
+          | item={{ helix_Item | default('unset') }}
+          | ansible_host={{ ansible_host | default('unset') }}
+          | status={{ helix_AssetLifecycleStatus | default('unset') }}
+          | instance_id={{ helix_instance_id | default('unset') }}
+
+- name: Summarise the inventory
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  tasks:
+    - name: Host count
+      ansible.builtin.debug:
+        msg: "{{ groups['all'] | length }} Configuration Items became inventory hosts."
+
+    - name: Groups built from CMDB attributes
+      ansible.builtin.debug:
+        msg: >-
+          {{ groups.keys() | reject('equalto', 'all') | reject('equalto', 'ungrouped') | list | sort }}
+
+    - name: Every CMDB attribute available on the first host
+      ansible.builtin.debug:
+        msg: >-
+          {{ hostvars[groups['all'] | first]
+             | dict2items
+             | selectattr('key', 'match', '^helix_')
+             | items2dict }}
+      when: groups['all'] | length > 0

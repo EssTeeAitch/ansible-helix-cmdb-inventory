@@ -1,0 +1,61 @@
+# Stage 2 and 3, against a real Helix host.
+#
+# Nothing in this file is a secret.  base_url, username and password are all read
+# from the environment, which is what lets the same file work from a laptop and
+# from an AAP inventory source using a custom credential type.
+#
+#   export HELIX_BASE_URL=https://helix.example.com
+#   export HELIX_USERNAME=svc_ansible
+#   export HELIX_PASSWORD=...
+#   ansible-inventory -i inventory/helix.yml --graph
+#
+# THINGS TO VERIFY ON FIRST CONTACT WITH A REAL CMDB, see README section 4.
+#   1. the attribute names below, which vary by class and by local extension
+#   2. which attribute holds a resolvable host name
+#   3. how soft deleted CIs are marked, before turning on the qualification
+plugin: unofficial.helix_cmdb.cmdb
+
+dataset_id: BMC.ASSET
+namespace: BMC.CORE
+class_name_id: BMC_ComputerSystem
+
+attributes:
+  - Name
+  - HostName
+  - Domain
+  - ShortDescription
+  - Category
+  - Type
+  - Item
+  - AssetLifecycleStatus
+
+# Start with no qualification.  Add one only once the unfiltered query returns.
+# Excluding soft deleted CIs is the first one worth adding; confirm the stored
+# value of MarkAsDeleted with the Helix administrator before relying on it.
+# qualification: >-
+#   'MarkAsDeleted' != "Yes" AND 'Category' = "Hardware" AND 'Type' = "Server"
+
+hostname_attributes:
+  - HostName
+  - Name
+
+# Requested per call.  The plugin pages until every match has been read.
+page_size: 500
+
+records_path: instances
+attributes_path: attributes
+
+group_by_attributes:
+  - Item
+
+# BMC_ComputerSystem carries no IP address, so build the connection address
+# from the name.  See README section 4 if the names do not resolve.
+compose:
+  ansible_host: helix_HostName ~ '.' ~ helix_Domain
+
+validate_certs: true
+timeout: 30
+
+# Caching is off while you are still shaping the query, otherwise every change
+# appears to do nothing.  Turn it on once the output is stable.
+cache: false

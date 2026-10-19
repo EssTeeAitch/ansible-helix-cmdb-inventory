@@ -1,0 +1,152 @@
+---
+# Stage 1.  Prove the connection before involving the inventory plugin at all.
+#
+# This deliberately uses only ansible.builtin.uri, so if it fails the problem is
+# the URL, the credentials, TLS or the network, and not the plugin.  It also
+# prints the number of matching CIs and the shape of the CMDB response, which
+# is what you need in order to check records_path and attributes_path in
+# inventory/helix.yml.
+#
+#   export HELIX_BASE_URL=https://helix.example.com
+#   export HELIX_USERNAME=svc_ansible
+#   export HELIX_PASSWORD=...
+#   ansible-playbook test_connection.yml
+#
+# Add -e helix_validate_certs=false only to prove a TLS trust problem.  Do not
+# leave it off permanently.
+
+- name: Helix CMDB connection test
+  hosts: localhost
+  gather_facts: false
+  connection: local
+
+  vars:
+    helix_base_url: "{{ lookup('env', 'HELIX_BASE_URL') }}"
+    helix_username: "{{ lookup('env', 'HELIX_USERNAME') }}"
+    helix_password: "{{ lookup('env', 'HELIX_PASSWORD') }}"
+    helix_validate_certs: true
+    helix_timeout: 30
+    helix_dataset_id: BMC.ASSET
+    helix_namespace: BMC.CORE
+    helix_class_name_id: BMC_ComputerSystem
+    # AR-JWT is what the AR System REST API documents.  Some CMDB examples show Bearer.
+    helix_auth_scheme: AR-JWT
+    # Optional.  Leave empty for the first run, see README section 4.
+    helix_qualification: ''
+    # Keep this to one cheap attribute.  The point is reachability, not data.
+    helix_probe_attributes: Name
+
+  tasks:
+    - name: Check that the three required values are present
+      ansible.builtin.assert:
+        that:
+          - helix_base_url | length > 0
+          - helix_username | length > 0
+          - helix_password | length > 0
+        fail_msg: >-
+          Set HELIX_BASE_URL, HELIX_USERNAME and HELIX_PASSWORD in the environment
+          before running this playbook.
+        success_msg: "Base URL, user name and password are all set."
+
+    - name: Request an AR System JWT
+      ansible.builtin.uri:
+        url: "{{ helix_base_url | regex_replace('/$', '') }}/api/jwt/login"
+        method: POST
+        body_format: form-urlencoded
+        body:
+          username: "{{ helix_username }}"
+          password: "{{ helix_password }}"
+        return_content: true
+        validate_certs: "{{ helix_validate_certs }}"
+        timeout: "{{ helix_timeout }}"
+        status_code: [200]
+      register: helix_login
+      no_log: true
+      failed_when: false
+
+    - name: Report the login outcome
+      ansible.builtin.fail:
+        msg: >-
+          Login failed against {{ helix_base_url }}/api/jwt/login.
+          Status {{ helix_login.status | default('none') }}.
+          {{ helix_login.msg | default('') }}
+          A status of -1 usually means DNS, routing or TLS rather than credentials.
+          A 401 means the user name or password is wrong.
+          A 404 means this Helix version does not expose /api/jwt/login at this path,
+          in which case confirm the correct authentication endpoint with the Helix administrator.
+      when: helix_login.status | default(-1) != 200
+
+    - name: Confirm a non empty token came back
+      ansible.builtin.assert:
+        that:
+          - helix_login.content is defined
+          - helix_login.content | trim | length > 0
+        fail_msg: "Login returned HTTP 200 but the token was empty."
+        success_msg: "Authentication succeeded and a token was issued."
+
+    - name: Query one CMDB class, one record only
+      ansible.builtin.uri:
+        url: >-
+          {{ helix_base_url | regex_replace('/$', '') }}/api/cmdb/v1.0/instances/{{ helix_dataset_id
+          }}/{{ helix_namespace }}/{{ helix_class_name_id }}?offset=0&limit=1&num_matches=true&attributes={{
+          helix_probe_attributes }}{{ ('&qualification=' ~ (helix_qualification | urlencode)) if helix_qualification else '' }}
+        method: GET
+        headers:
+          Authorization: "{{ helix_auth_scheme }} {{ helix_login.content | trim }}"
+          Accept: application/json
+        return_content: true
+        validate_certs: "{{ helix_validate_certs }}"
+        timeout: "{{ helix_timeout }}"
+        status_code: [200]
+      register: helix_query
+      failed_when: false
+
+    - name: Report the query outcome
+      ansible.builtin.fail:
+        msg: >-
+          Authentication worked but the CMDB query failed.
+          Status {{ helix_query.status | default('none') }}.
+          {{ helix_query.msg | default('') }}
+          {{ helix_query.content | default('') }}
+          A 401 here, after a successful login, usually means the server wants a
+          different helix_auth_scheme, try -e helix_auth_scheme=Bearer.
+          A 403 means the account authenticated but has no read permission on
+          dataset {{ helix_dataset_id }} or class {{ helix_class_name_id }}.
+          A 404 means the dataset, namespace or class name is wrong for this environment.
+          A 400 usually means an attribute in helix_probe_attributes or the
+          qualification is not valid for this class.
+      when: helix_query.status | default(-1) != 200
+
+    - name: Pick out the first record
+      ansible.builtin.set_fact:
+        helix_first: "{{ helix_query.json.instances | default([]) | first | default({}) }}"
+
+    - name: Show the shape of the response
+      ansible.builtin.debug:
+        msg:
+          - "Connection test passed."
+          - "Matching CIs in {{ helix_dataset_id }}/{{ helix_namespace }}/{{ helix_class_name_id }}: {{ helix_query.json.num_matches | default('not reported') }}"
+          - "Top level keys in the response: {{ helix_query.json.keys() | list | join(', ') }}"
+          - >-
+            {{ 'records_path: instances matches this response.'
+               if 'instances' in helix_query.json
+               else 'No instances key, set records_path in inventory/helix.yml to whichever top level key holds the list.' }}
+          - >-
+            First record keys:
+            {{ helix_first.keys() | list | join(', ') if helix_first
+               else 'no records returned, so the class is readable but empty' }}
+          - >-
+            {{ ('Attributes on the first record: ' ~ (helix_first.attributes.keys() | list | join(', ')))
+               if helix_first.attributes is defined
+               else 'No attributes key on the record, set attributes_path to match, or to an empty string.' }}
+
+    - name: Invalidate the token
+      ansible.builtin.uri:
+        url: "{{ helix_base_url | regex_replace('/$', '') }}/api/jwt/logout"
+        method: POST
+        headers:
+          Authorization: "{{ helix_auth_scheme }} {{ helix_login.content | trim }}"
+        status_code: [200, 204]
+        validate_certs: "{{ helix_validate_certs }}"
+        timeout: "{{ helix_timeout }}"
+      failed_when: false

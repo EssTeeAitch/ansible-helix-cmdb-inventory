@@ -1,0 +1,19 @@
+namespace: unofficial
+name: helix_cmdb
+version: 0.2.0
+readme: README.md
+authors:
+  - Contributors
+description: >-
+  Unofficial starter skeleton for an Ansible dynamic inventory sourced from
+  BMC Helix CMDB.  Not affiliated with or endorsed by BMC or Red Hat.
+license:
+  - MIT-0
+tags:
+  - inventory
+  - cmdb
+  - helix
+  - bmc
+build_ignore:
+  - '*.tar.gz'
+  - tests/output

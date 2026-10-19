@@ -1,0 +1,79 @@
+{
+  "instances": [
+    {
+      "instance_id": "OI-0000000000000000000000000000001",
+      "class_name_key": {"name": "BMC_ComputerSystem", "namespace": "BMC.CORE"},
+      "dataset_id": "BMC.ASSET",
+      "attributes": {
+        "Name": "app-prod-01",
+        "HostName": "app-prod-01",
+        "Domain": "example.com",
+        "ShortDescription": "Application server",
+        "Category": "Hardware",
+        "Type": "Server",
+        "Item": "Rack Mount",
+        "AssetLifecycleStatus": "Deployed"
+      },
+      "_links": {"self": [{"href": "https://helix.example.com/api/cmdb/v1.0/instances/BMC.ASSET/BMC.CORE/BMC_ComputerSystem/OI-0000000000000000000000000000001"}]}
+    },
+    {
+      "instance_id": "OI-0000000000000000000000000000002",
+      "class_name_key": {"name": "BMC_ComputerSystem", "namespace": "BMC.CORE"},
+      "dataset_id": "BMC.ASSET",
+      "attributes": {
+        "Name": "app-prod-02",
+        "HostName": "app-prod-02",
+        "Domain": "example.com",
+        "ShortDescription": "Application server",
+        "Category": "Hardware",
+        "Type": "Server",
+        "Item": "Rack Mount",
+        "AssetLifecycleStatus": "Deployed"
+      },
+      "_links": {"self": [{"href": "https://helix.example.com/api/cmdb/v1.0/instances/BMC.ASSET/BMC.CORE/BMC_ComputerSystem/OI-0000000000000000000000000000002"}]}
+    },
+    {
+      "instance_id": "OI-0000000000000000000000000000003",
+      "class_name_key": {"name": "BMC_ComputerSystem", "namespace": "BMC.CORE"},
+      "dataset_id": "BMC.ASSET",
+      "attributes": {
+        "Name": "db-prod-01",
+        "HostName": "db-prod-01",
+        "Domain": "example.com",
+        "ShortDescription": "Database server",
+        "Category": "Hardware",
+        "Type": "Server",
+        "Item": "Rack Mount",
+        "AssetLifecycleStatus": "In Repair"
+      },
+      "_links": {"self": [{"href": "https://helix.example.com/api/cmdb/v1.0/instances/BMC.ASSET/BMC.CORE/BMC_ComputerSystem/OI-0000000000000000000000000000003"}]}
+    },
+    {
+      "instance_id": "OI-0000000000000000000000000000004",
+      "class_name_key": {"name": "BMC_ComputerSystem", "namespace": "BMC.CORE"},
+      "dataset_id": "BMC.ASSET",
+      "attributes": {
+        "HostName": "app-test-01",
+        "Domain": "test.example.com",
+        "ShortDescription": "Record with no Name but a HostName, present on purpose to show the hostname_attributes fallback",
+        "Category": "Hardware",
+        "Type": "Server",
+        "Item": "Virtual Machine",
+        "AssetLifecycleStatus": "Deployed"
+      },
+      "_links": {"self": [{"href": "https://helix.example.com/api/cmdb/v1.0/instances/BMC.ASSET/BMC.CORE/BMC_ComputerSystem/OI-0000000000000000000000000000004"}]}
+    },
+    {
+      "instance_id": "OI-0000000000000000000000000000005",
+      "class_name_key": {"name": "BMC_ComputerSystem", "namespace": "BMC.CORE"},
+      "dataset_id": "BMC.ASSET",
+      "attributes": {
+        "ShortDescription": "Record with no Name and no HostName, present on purpose to show that an incomplete Configuration Item is skipped rather than failing the whole sync",
+        "Category": "Hardware",
+        "Type": "Server"
+      },
+      "_links": {"self": [{"href": "https://helix.example.com/api/cmdb/v1.0/instances/BMC.ASSET/BMC.CORE/BMC_ComputerSystem/OI-0000000000000000000000000000005"}]}
+    }
+  ],
+  "num_matches": 5
+}

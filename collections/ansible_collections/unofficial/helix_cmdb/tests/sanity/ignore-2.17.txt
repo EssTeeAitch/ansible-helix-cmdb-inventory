@@ -1,0 +1,1 @@
+plugins/inventory/cmdb.py validate-modules:missing-gplv3-license # MIT-0 licensed, see LICENSE

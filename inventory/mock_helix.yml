@@ -1,0 +1,25 @@
+# Stage 2 and 3, offline.  Runs with no Helix host at all.
+#   ansible-inventory -i inventory/mock_helix.yml --graph
+#   ansible-inventory -i inventory/mock_helix.yml --list
+plugin: unofficial.helix_cmdb.cmdb
+
+mock_file: mock/ci_response.json
+
+# Tried in order.  The fourth sample record has no Name, so it lands on HostName.
+hostname_attributes:
+  - Name
+  - HostName
+
+# Stage 3, the query test.  Pull a couple of things in and turn them into groups.
+group_by_attributes:
+  - Item
+  - AssetLifecycleStatus
+
+keyed_groups:
+  - key: helix_Type
+    prefix: type
+    separator: '_'
+
+compose:
+  ansible_host: helix_HostName ~ '.' ~ helix_Domain
+  cmdb_is_virtual: helix_Item == 'Virtual Machine'
